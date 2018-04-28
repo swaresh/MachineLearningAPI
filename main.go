@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -17,6 +19,14 @@ import (
 const (
 	directoryPath = "ML/MachineLearningAPI"
 )
+
+type Parameters struct {
+	I        string  `json:"i"`
+	J        string  `json:"j"`
+	K        string  `json:"k"`
+	Accuracy float64 `json:"accuracy"`
+	Images   string  `json:"images"`
+}
 
 var learningRate = []float64{0.001, 0.01, 0.1}
 var numofLayers = []int{1, 2, 4}
@@ -41,7 +51,6 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeTesting() {
-	fmt.Printf("Training Model \n")
 	db, err := sql.Open("mysql",
 		"root:root@tcp(127.0.0.1:3306)/machine_learning")
 	if err != nil {
@@ -59,6 +68,7 @@ func executeTesting() {
 
 func executeTraining() {
 
+	fmt.Printf("Training Model \n")
 	db, err := sql.Open("mysql",
 		"root:root@tcp(127.0.0.1:3306)/machine_learning")
 	if err != nil {
@@ -76,14 +86,21 @@ func executeTraining() {
 }
 
 func executeExperiment(i float64, j int, k int, db *sql.DB) {
-	cmd := exec.Command("python", "train.py", "--i", fmt.Sprintf("%.6f", i), "--j", strconv.Itoa(j), "--k", strconv.Itoa(k))
+	cmd := exec.Command("python", "train.py", "--i", fmt.Sprintf("%.6f", i), "--j", strconv.Itoa(j), "--k", strconv.Itoa(k), "--images", "/home/ubuntu/TrainingImages/")
 	out, err := cmd.Output()
+
 	if err != nil {
 		println(err.Error())
 		return
 	}
-
-	query := fmt.Sprintf("INSERT INTO accuracy (learning_rate, layer, steps, accuracy) VALUES ( %s, %s, %s, %s )", fmt.Sprintf("%.6f", i), strconv.Itoa(j), strconv.Itoa(k), string(out))
+	var p Parameters
+	str := strings.Replace(string(out), "'", "\"", -1)
+	out = []byte(str)
+	err = json.Unmarshal(out, &p)
+	if err != nil {
+		fmt.Println("Error Unmarshalling Error, ", err)
+	}
+	query := fmt.Sprintf("INSERT INTO accuracy (learning_rate, layer, steps, accuracy) VALUES ( %s, %s, %s, %s )", fmt.Sprintf("%.6f", i), strconv.Itoa(j), strconv.Itoa(k), fmt.Sprintf("%.6f", p.Accuracy))
 	insert, err := db.Query(query)
 	if err != nil {
 		panic(err.Error())

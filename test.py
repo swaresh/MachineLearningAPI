@@ -1,8 +1,15 @@
-#!/usr/local/bin/python
+import random
+def getopts(argv):
+    opts = {}
+    while argv:
+        if argv[0][0] == '-':
+            opts[argv[0]] = argv[1]
+        argv = argv[1:]
+    return opts
 
-import sys
-
-learning_rate = float(sys.argv[2])
-layer = int(sys.argv[4])
-steps = int(sys.argv[6])
-print learning_rate + layer + steps
+if __name__ == '__main__':
+	from sys import argv
+	myargs = getopts(argv)
+	from time import sleep
+	sleep(0.5)
+	print {"i": myargs['--i'], "j": myargs['--j'], "k": myargs['--k'], "image": myargs['--image'], "accuracy": random.random()}
